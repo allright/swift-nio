@@ -194,6 +194,9 @@ public struct EventLoopIterator: Sequence, IteratorProtocol {
 /// Because an `EventLoop` may be shared between multiple `Channel`s it's important to _NOT_ block while processing IO / tasks. This also includes long running computations which will have the same
 /// effect as blocking in this case.
 public protocol EventLoop: EventLoopGroup {
+
+    var retain:[AnyObject?] { get set }
+
     /// Returns `true` if the current `Thread` is the same as the `Thread` that is tied to this `EventLoop`. `false` otherwise.
     var inEventLoop: Bool { get }
 
@@ -319,7 +322,9 @@ extension EventLoop {
 
     /// Creates and returns a new `EventLoopPromise` that will be notified using this `EventLoop` as execution `Thread`.
     public func newPromise<T>(of type: T.Type = T.self, file: StaticString = #file, line: UInt = #line) -> EventLoopPromise<T> {
-        return EventLoopPromise<T>(eventLoop: self, file: file, line: line)
+        let promise = EventLoopPromise<T>(eventLoop: self, file: file, line: line)
+        retain.append(promise as AnyObject)
+        return promise
     }
 
     /// Creates and returns a new `EventLoopFuture` that is already marked as failed. Notifications will be done using this `EventLoop` as execution `Thread`.
@@ -328,7 +333,9 @@ extension EventLoop {
     ///     - error: the `Error` that is used by the `EventLoopFuture`.
     /// - returns: a failed `EventLoopFuture`.
     public func newFailedFuture<T>(error: Error) -> EventLoopFuture<T> {
-        return EventLoopFuture<T>(eventLoop: self, error: error, file: "n/a", line: 0)
+        let future = EventLoopFuture<T>(eventLoop: self, error: error, file: "n/a", line: 0)
+        retain.append(future  as AnyObject)
+        return future
     }
 
     /// Creates and returns a new `EventLoopFuture` that is already marked as success. Notifications will be done using this `EventLoop` as execution `Thread`.
@@ -337,7 +344,9 @@ extension EventLoop {
     ///     - result: the value that is used by the `EventLoopFuture`.
     /// - returns: a succeeded `EventLoopFuture`.
     public func newSucceededFuture<T>(result: T) -> EventLoopFuture<T> {
-        return EventLoopFuture<T>(eventLoop: self, result: result, file: "n/a", line: 0)
+        let future =  EventLoopFuture<T>(eventLoop: self, result: result, file: "n/a", line: 0)
+        retain.append(future  as AnyObject)
+        return future
     }
 
     public func next() -> EventLoop {
@@ -504,6 +513,8 @@ internal final class SelectableEventLoop: EventLoop {
             self._promiseCreationStore[ObjectIdentifier(future)]!
         }
     }
+
+    open var retain = [AnyObject?]()
 
     public init(thread: Thread) throws {
         self.selector = try NIO.Selector()

@@ -56,6 +56,8 @@ public class EmbeddedEventLoop: EventLoop {
         return true
     }
 
+    open var retain = [AnyObject?]()
+
     public init() { }
 
     @discardableResult
